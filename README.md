@@ -1,4 +1,4 @@
 showScrape
 ==========
 
-Search for a list of shows and episodes
+Search for each show/episode combination and pull the magnetic link, if found
