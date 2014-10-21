@@ -1,18 +1,3 @@
-superTestData="""
-
-
-v class="detName">          <a href="/torrent/11157514/Doctor.Who.2005.8x07.Kill.The.Moon.720p.HDTV.x264-FoV[rartv]" class="detLink" title="Details for Doctor.Who.2005.8x07.Kill.The.Moon.720p.HDTV.x264-FoV[rartv]">Doctor.Who.2005.8x07.Kill.The.Moon.720p.HDTV.x264-FoV[rartv]</a>
-</div>
-<a href="magnet:?xt=urn:btih:bc83aeb4a66d35263327a797ed6f939af31f01dc&dn=Doctor.Who.2005.8x07.Kill.The.Moon.720p.HDTV.x264-FoV%5Brartv%5D&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Ftracker.istole.it%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337" title="Download this torrent using magnet"><img src="/static/img/icon-magnet.gif" alt="Magnet link" /></a><img src="/static/img/icon_comment.gif" alt="This torrent has 6 comments." title="This torrent has 6 comments." /><a href="/user/Drarbg"><img src="/static/img/vip.gif" alt="VIP" title="VIP" style="width:11px;" border='0' /></a>
-            <font class="detDesc">Uploaded Y-day&nbsp;22:17, Size 997.69&nbsp;MiB, ULed by <a class="detDesc" href="/user/Drarbg/" title="Browse Drarbg">Drarbg</a></font>
-                    </td>
-                            <td align="right">6501</td>
-                                    <td align="right">3097</td>
-                                        </tr>
-                                            <tr>
-                                                    <td class="vertTh">i
-    """
-
 import os, urllib2, re
 compiled_list = []
 compiled_dict = {} 
@@ -45,13 +30,12 @@ def getDirectoryPath(desiredDirectory):
     return abs_dir_path
 
 def makeDict(suppliedFile):
-    """Take the data/<fileName> file and complies a title/epiNum dictionary
-    """
+    """Take the data/<fileName> file and complies a title/epiNum dictionary"""
     try:
         with open(suppliedFile) as f:
             for line in f:
-                item = line.split()
-                title, episode = item[0], int(item[1])
+                lineItems = line.split()
+                title, episode = lineItems[0], int(lineItems[1])
                 compiled_dict[title] = int(episode)
         f.close()
         return compiled_dict
@@ -65,9 +49,24 @@ def genShowObjects(suppliedFile):
     try:
         with open(suppliedFile) as f:
             for line in f:
-                item = line.split()
-                title, episodeNum = item[0], int(item[1])
-                listValue = showEpisode(title, episodeNum) 
+                lineItems = line.split()
+                try:
+                    lineItems[2]
+
+                except IndexError:
+                    lineItems.append(lineItems[1])
+                    lineItems[1] = '00'
+
+                for i in range(1, 3):
+                    if len(lineItems[i]) < 2:
+                        lineItems[i] = '0' + lineItems[i]
+                
+                # if these aren't integers they probably break the original
+                # search method
+                title, seasonNum, episodeNum = lineItems[0], lineItems[1], lineItems[2]
+                
+                listValue = showEpisode(title, episodeNum, seasonNum) 
+                
                 showObjects.append(listValue)
 
         f.close()
@@ -83,8 +82,8 @@ def makeList(suppliedFile):
     try:
         with open(suppliedFile) as f:
             for line in f:
-                item = line.strip('\n')
-                compiled_list.append(item)
+                lineItems = line.strip('\n')
+                compiled_list.append(lineItems)
         f.close
         return compiled_list
     
@@ -93,43 +92,47 @@ def makeList(suppliedFile):
         exit(1)
 
 class showEpisode(object):
-    def __init__(self, title, episodeNum):
+    def __init__(self, title, episodeNum, seasonNum=None):
         self.title = title
         self.episodeNum = episodeNum
+        self.seasonNum = seasonNum
         self.downloadLink = None
         self.acquired = False
 
                 
     def processMatch(self, matchCheck):
-        print "processMatch processing %s E %s" % (self.title, self.episodeNum)
+        
         if matchCheck:
-            print "MATCH found for %s E %s" % (self.title, self.episodeNum) 
+
             self.downloadLink = matchCheck.group(0)
             #updateShowDict(title, showDict)
-        else:
-            print "Episode not available yet"
 
-    def applyRegEx(self, dataToTest=superTestData):
+        else:
+            print ""
+            print "No MATCH for %s S%sE%s yet" % (self.title, self.seasonNum,
+                self.episodeNum)
+            print ""
+
+    def applyRegEx(self, dataToTest):
             """Apply the regEx to the title:episode combo, return a match object"""
-            print "applyRegEx processing %s E %s" % (self.title, self.episodeNum)
             regEx = re.compile(r"""
                 magnet# beginning of magnet link
                 .*# anything until title
                 %s# title
                 .*?S# match the rest of the title up to S
-                .{0,2}?# all the bits between title and episode
-                E?0?%s# episode number
+                %sE%s# season number and episode number
                 .*?# anything until the end of the link, made ungreedy by the '?'
                 (?=")
-                """ % (self.title, self.episodeNum), re.VERBOSE | re.IGNORECASE)
+                """ % (self.title, self.seasonNum, self.episodeNum), re.VERBOSE
+                    | re.IGNORECASE)
             matchCheck = regEx.search(dataToTest)
             return matchCheck
         
     def updateFound(self):
         self.acquired = True
-        self.episodeNum += 1
+        self.episodeNum = int(self.episodeNum) + 1
 
-def getSiteData(siteList):
+def getAllData(siteList):
     """Acquire site data from each URL in a list"""
     for url in siteList:
         user_agent = "" # fill this in 
@@ -137,7 +140,15 @@ def getSiteData(siteList):
         response = urllib2.urlopen(request)
         tempData = response.read() # make sure to change this to read()
         siteData.append(tempData)
-    return siteData
+        return siteData
+
+def getSomeData(url):
+    """Acquire site data from single supplied URL"""
+    user_agent = "" # fill this in 
+    request = urllib2.Request(url)    
+    response = urllib2.urlopen(request)
+    tempData = response.read() # make sure to change this to read()
+    return tempData 
 
 def temp_getSiteData(siteList):
     """FOR TESTING: Acquire site data from each URL in a list"""
@@ -153,74 +164,112 @@ def writeOutLinks(suppliedFile):
     """Write the magnet links out to a file to be read by a bittorrent program"""
     for i in range(len(showObjects)):
         if showObjects[i].downloadLink == None:
-            print "No link for %s E %s" % (showObjects[i].title, showObjects[i].episodeNum)
+            pass
+
         elif showObjects[i].downloadLink != None:
-            print "Writing link files for %s E %s" % (showObjects[i].title, showObjects[i].episodeNum)
+            print ""
+            print "Writing link file for %s S%sE%s" % (showObjects[i].title,
+                showObjects[i].seasonNum, showObjects[i].episodeNum)
+            
             ## to write links into one file
             #with open(suppliedFile, 'a') as f:
             #    f.write(showObjects[i].downloadLink +'\n')
             #    f.close()
+            
             ## to write out individual link files
+            
             dataDir = getDirectoryPath("data/")
-            print dataDir
-            abs_file_path = os.path.join(dataDir, "magnets", showObjects[i].title +  ".magnet")
-            print abs_file_path
+            
+            abs_file_path = os.path.join(dataDir, "magnets",
+                showObjects[i].title + ".S" + showObjects[i].seasonNum + "E" +
+                showObjects[i].episodeNum + ".magnet")
+            
             with open(abs_file_path, 'w') as f:
                 f.write(showObjects[i].downloadLink +'\n')
                 f.close()
             
             showObjects[i].updateFound()
-        print raw_input(">>")
 
 def writeOutShowFile():
     dataDir = getDirectoryPath("data/")
-    print dataDir
     abs_file_path = os.path.join(dataDir, 'showList')
-    print abs_file_path
+    
     with open(abs_file_path, 'w') as f:
         for i in range(len(showObjects)):
             title = showObjects[i].title
+            season = showObjects[i].seasonNum
             episode = showObjects[i].episodeNum
-            fileEntry = "%s %s\n" % (title, episode)
+            fileEntry = "%s %s %s\n" % (title, season, episode)
             f.write(fileEntry)
         f.close()
-
-        print showObjects[i].title, showObjects[i].episodeNum
 
 def searchForShows(data):
     for idata in range(len(data)):
         for i in range(len(showObjects)):
-            print "seachForShows processing %s E %s" % (showObjects[i].title, showObjects[i].episodeNum)
+            
             if showObjects[i].acquired == False:
                 showObjects[i].processMatch(showObjects[i].applyRegEx(data[idata]))
             else:
                 print "%s already FOUND" % showObjects[i].title
+
+def searchForShowsByUrlSearch():
+    for i in range(len(showObjects)):
+        url = makeSearchUrl(showObjects[i])
+        data = getSomeData(url)
+        searchData = showObjects[i].applyRegEx(data)
+        showObjects[i].processMatch(searchData)
+
+def makeSearchUrl(whichShow):
+    """Return single url with title/season/episode inserted"""
+    # pattern is TITLE%20S##E##/0/7/0
+    searchUrl = '' 
+    baseUrl = "http://thepiratebay.se/search/%s%%20S%sE%s/0/7/0"
+    baseUrl2 = "http://thepiratebay.se/search/%s%%20E%s/0/7/0"
+     
+    if whichShow.seasonNum == '00':
+        compositeUrl = baseUrl2 % (whichShow.title, whichShow.episodeNum)
+    else:
+        compositeUrl = baseUrl % (whichShow.title, whichShow.seasonNum,
+            whichShow.episodeNum)
+    
+    return compositeUrl 
+
+def makeUrlSearchList():
+    """Make a list of urls with title/episodes inserted"""
+    # pattern is TITLE%20S##E##/0/7/0
+    searchUrlList = []
+    baseUrl = "http://thepiratebay.se/search/%s%%20S%sE%s/0/7/0"
+    baseUrl2 = "http://thepiratebay.se/search/%s%%20E%s/0/7/0"
+     
+    for i in range(len(showObjects)):
+        if showObjects[i].seasonNum == '00':
+            compositeUrl = baseUrl2 % (showObjects[i].title, showObjects[i].episodeNum)
+        else:
+            compositeUrl = baseUrl % (showObjects[i].title,
+                showObjects[i].seasonNum, showObjects[i].episodeNum)
+        
+        searchUrlList.append(compositeUrl)
+
+    return searchUrlList
 
 def whatDo():
     """Execute all the things"""
     showListFile = getFilePath('showList')
     urlListFile = getFilePath('urlList')
     matchListFile = getFilePath('matchList.magnet')
-    
     showDict = makeDict(showListFile)
     urlList = makeList(urlListFile)
-
     genShowObjects(showListFile)
-    printList(showObjects)
-    for i in range(len(showObjects)):
-        print showObjects[i].title, showObjects[i].episodeNum
+    searchForShowsByUrlSearch()
 
-    data = getSiteData(urlList)
-    searchForShows(data) # change to variable data for real life
+    #urlSearchList = makeUrlSearchList()
+    #data = getAllData(urlList)
+    #data = getAllData(urlSearchList)
+    #searchForShows(data) # change to variable data for real life
+    
     writeOutLinks(matchListFile)
     writeOutShowFile()    
-# testing
-    #print showListFile
-    #print urlListFile
-    #printDict(showDict)
-    #for i in range(len(showObjects)):
-    #print showObjects[i].title, showObjects[i].episodeNum, "\tFound:", showObjects[i].acquired
-    #printList(urlList)    
+
 whatDo()
 
 
