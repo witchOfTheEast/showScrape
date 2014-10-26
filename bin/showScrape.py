@@ -1,7 +1,9 @@
 import os, urllib2, re
 compiled_list = []
 compiled_dict = {} 
-showObjects = [] # list of show objects to iterate through, search for titles that are not marked found, update the ep number then they are found, mark them unfound
+showObjects = [] # list of show objects to iterate through, search for titles
+    #that are not marked found, update the ep number then they are found,
+    #mark them unfound
 showDict = {} # dictionary of episode numbers by title
 siteData = [] 
 matchList = []
@@ -114,15 +116,17 @@ class showEpisode(object):
             print ""
 
     def applyRegEx(self, dataToTest):
-            """Apply the regEx to the title:episode combo, return a match object"""
+            """Search data for title/season/episode regex, return a match object"""
             regEx = re.compile(r"""
                 magnet# beginning of magnet link
                 .*# anything until title
                 %s# title
                 .*?S# match the rest of the title up to S
                 %sE%s# season number and episode number
+                .*?# anything after episode number
+                (eztv|ettv|rarbg)# to avoid downloading fakes
                 .*?# anything until the end of the link, made ungreedy by the '?'
-                (?=")
+                (?=")# ungreedy, non-inclusive link closing quote mark
                 """ % (self.title, self.seasonNum, self.episodeNum), re.VERBOSE
                     | re.IGNORECASE)
             matchCheck = regEx.search(dataToTest)
