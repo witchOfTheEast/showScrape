@@ -9,6 +9,7 @@ showObjects = [] # list of show objects to iterate through, search for titles
     #mark them unfound
 siteData = [] 
 matchList = []
+outToShowList = []
 
 def getFilePath(fileName):
     """Acquire the absolute path for the desired file"""
@@ -26,8 +27,7 @@ def getDirectoryPath(desiredDirectory):
     return abs_dir_path
 
 def processShowListFile(suppliedFile):
-    """Search for each show entry in file line by line.
-        Note, each line should be title season episode order."""
+    """Search for each show entry in file line by line."""
     try:
         with open(suppliedFile) as f:
             for line in f:
@@ -160,20 +160,15 @@ def writeSingleLink(showObject):
         showObject.updateFound()
         print 'Success!'
     else:
-        print 'Error: associated link not found'
+        # do nothing because there is no link
+        pass
 
-
-def writeOutShowFile():
-    dataDir = getDirectoryPath("data/")
-    abs_file_path = os.path.join(dataDir, 'showList')
+def writeOutShowFile(showListArg):
     
-    with open(abs_file_path, 'w') as f:
-        for i in range(len(showObjects)):
-            title = showObjects[i].title
-            season = showObjects[i].seasonNum
-            episode = showObjects[i].episodeNum
-            fileEntry = "%s %s %s\n" % (title, season, episode)
-            f.write(fileEntry)
+    with open(showListArg, 'w') as f:
+        for i in outToShowList:
+            str1 = '%s %s %s\n' % (i[0], i[1], i[2])
+            f.write(str1) 
         f.close()
 
 def makeSearchUrl(whichShow):
@@ -203,8 +198,7 @@ def genShowObject(title, season, episode):
 def handleShowListArg(showListArg):
     """Place holder to initialize a showList and send it to process"""
     processShowListFile(showListArg)
-    #writeOutLinks(matchListFile)
-    #writeOutShowFile()    
+    writeOutShowFile(showListArg)    
 
 def singleEntry(title, season, episode):
     """Process a search for a single show entered on the command line"""
@@ -214,7 +208,7 @@ def singleEntry(title, season, episode):
     activeTest = activeShow.applyRegEx(activeData)
     activeResults = activeShow.processMatch(activeTest)
     writeSingleLink(activeShow)
-
+    outToShowList.append((activeShow.title, activeShow.seasonNum, activeShow.episodeNum))
 
 def main(argv):
     print "main is running"
