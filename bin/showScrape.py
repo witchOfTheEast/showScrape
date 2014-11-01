@@ -1,21 +1,15 @@
-import os, urllib2, re
+import os, urllib2, re, sys, getopt
+
+# does not write out to the showList yet
+
 compiled_list = []
 compiled_dict = {} 
 showObjects = [] # list of show objects to iterate through, search for titles
     #that are not marked found, update the ep number then they are found,
     #mark them unfound
-showDict = {} # dictionary of episode numbers by title
 siteData = [] 
 matchList = []
 
-def printList(_list):
-    for i in range(len(_list)):
-        print _list[i]
-
-def printDict(dictionary):
-    print ""
-    print "dict: ", dictionary.items()
- 
 def getFilePath(fileName):
     """Acquire the absolute path for the desired file"""
     script_dir = os.path.abspath(os.path.dirname(__file__))
@@ -31,70 +25,44 @@ def getDirectoryPath(desiredDirectory):
     abs_dir_path = os.path.abspath(os.path.join(parent_dir, desiredDirectory))
     return abs_dir_path
 
-def makeDict(suppliedFile):
-    """Take the data/<fileName> file and complies a title/epiNum dictionary"""
+def processShowListFile(suppliedFile):
+    """Search for each show entry in file line by line.
+        Note, each line should be title season episode order."""
     try:
         with open(suppliedFile) as f:
             for line in f:
-                lineItems = line.split()
-                title, episode = lineItems[0], int(lineItems[1])
-                compiled_dict[title] = int(episode)
-        f.close()
-        return compiled_dict
+                lineContents = line.split()
+                
+                if len(lineContents) < 3:
+                    try:
+                        print "%s entry is incorrectly formatted. Likely \
+                        missing season or episode numbers." % lineContents[1]
+                    
+                    except IndexError:
+                        print "Catastrophic error reading line from %s" % suppliedFile
 
-    except IOError:
-        print "%s was not found. Check your data location." % suppliedFile
-        exit(1)
+                else:
+                    try: # catch a missing season and insert '00' season place holder
+                        lineContents[2]
 
-def genShowObjects(suppliedFile):
-    """Take data/<filename> and compile showEpisode objects"""
-    try:
-        with open(suppliedFile) as f:
-            for line in f:
-                lineItems = line.split()
-                try:
-                    lineItems[2]
-
-                except IndexError:
-                    lineItems.append(lineItems[1])
-                    lineItems[1] = '00'
-
+                    except IndexError:
+                        lineContents.insert(1, '00')
+                
+                # append a zero before single digit episode and season numbers
                 for i in range(1, 3):
-                    if len(lineItems[i]) < 2:
-                        lineItems[i] = '0' + lineItems[i]
+                    if len(lineContents[i]) < 2:
+                        lineContents[i] = '0' + lineContents[i]
                 
-                # if these aren't integers they probably break the original
-                # search method
-                title, seasonNum, episodeNum = lineItems[0], lineItems[1], lineItems[2]
+                title, season, episode = lineContents[0:3]
                 
-                listValue = showEpisode(title, episodeNum, seasonNum) 
-                
-                showObjects.append(listValue)
-
-        f.close()
-
+                singleEntry(title, season, episode)
+        
     except IOError:
-        print "%s was not found. Check your data location." % suppliedFile
-        exit(1)
+        print '%s was not found.' % suppliedFile
+        exit(2)
 
-def makeList(suppliedFile):
-    """Makes a list from data/<fileName>""" 
-    # i should used title1.title2
-    # additionally adding seasons to the showlist
-    try:
-        with open(suppliedFile) as f:
-            for line in f:
-                lineItems = line.strip('\n')
-                compiled_list.append(lineItems)
-        f.close
-        return compiled_list
-    
-    except IOError:
-        print "%s was not found. Check your data location." % suppliedFile
-        exit(1)
-
-class showEpisode(object):
-    def __init__(self, title, episodeNum, seasonNum=None):
+class show(object):
+    def __init__(self, title, seasonNum, episodeNum):
         self.title = title
         self.episodeNum = episodeNum
         self.seasonNum = seasonNum
@@ -107,7 +75,6 @@ class showEpisode(object):
         if matchCheck:
 
             self.downloadLink = matchCheck.group(0)
-            #updateShowDict(title, showDict)
 
         else:
             print ""
@@ -136,16 +103,6 @@ class showEpisode(object):
         self.acquired = True
         self.episodeNum = int(self.episodeNum) + 1
 
-def getAllData(siteList):
-    """Acquire site data from each URL in a list"""
-    for url in siteList:
-        user_agent = "" # fill this in 
-        request = urllib2.Request(url)    
-        response = urllib2.urlopen(request)
-        tempData = response.read() # make sure to change this to read()
-        siteData.append(tempData)
-        return siteData
-
 def getSomeData(url):
     """Acquire site data from single supplied URL"""
     user_agent = "" # fill this in 
@@ -153,16 +110,6 @@ def getSomeData(url):
     response = urllib2.urlopen(request)
     tempData = response.read() # make sure to change this to read()
     return tempData 
-
-def temp_getSiteData(siteList):
-    """FOR TESTING: Acquire site data from each URL in a list"""
-    for i in range(1):
-        user_agent = "" # fill this in 
-        request = urllib2.Request(siteList[1])    
-        response = urllib2.urlopen(request)
-        tempData = response.read()
-        siteData.append(tempData)
-        return tempData
 
 def writeOutLinks(suppliedFile):
     """Write the magnet links out to a file to be read by a bittorrent program"""
@@ -194,6 +141,28 @@ def writeOutLinks(suppliedFile):
             
             showObjects[i].updateFound()
 
+def writeSingleLink(showObject):
+    if showObject.downloadLink != None:
+        print ""
+        print "Writing link file for %s S%sE%s" % (showObject.title,
+            showObject.seasonNum, showObject.episodeNum)
+               
+        dataDir = getDirectoryPath("data/")
+        
+        abs_file_path = os.path.join(dataDir, "magnets",
+            showObject.title + ".S" + showObject.seasonNum + "E" +
+            showObject.episodeNum + ".magnet")
+        
+        with open(abs_file_path, 'w') as f:
+            f.write(showObject.downloadLink +'\n')
+            f.close()
+        
+        showObject.updateFound()
+        print 'Success!'
+    else:
+        print 'Error: associated link not found'
+
+
 def writeOutShowFile():
     dataDir = getDirectoryPath("data/")
     abs_file_path = os.path.join(dataDir, 'showList')
@@ -207,24 +176,8 @@ def writeOutShowFile():
             f.write(fileEntry)
         f.close()
 
-def searchForShows(data):
-    for idata in range(len(data)):
-        for i in range(len(showObjects)):
-            
-            if showObjects[i].acquired == False:
-                showObjects[i].processMatch(showObjects[i].applyRegEx(data[idata]))
-            else:
-                print "%s already FOUND" % showObjects[i].title
-
-def searchForShowsByUrlSearch():
-    for i in range(len(showObjects)):
-        url = makeSearchUrl(showObjects[i])
-        data = getSomeData(url)
-        searchData = showObjects[i].applyRegEx(data)
-        showObjects[i].processMatch(searchData)
-
 def makeSearchUrl(whichShow):
-    """Return single url with title/season/episode inserted"""
+    """Return single title/season/episode search url from show object"""
     # pattern is TITLE%20S##E##/0/7/0
     searchUrl = '' 
     baseUrl = "http://thepiratebay.se/search/%s%%20S%sE%s/0/7/0"
@@ -238,42 +191,64 @@ def makeSearchUrl(whichShow):
     
     return compositeUrl 
 
-def makeUrlSearchList():
-    """Make a list of urls with title/episodes inserted"""
-    # pattern is TITLE%20S##E##/0/7/0
-    searchUrlList = []
-    baseUrl = "http://thepiratebay.se/search/%s%%20S%sE%s/0/7/0"
-    baseUrl2 = "http://thepiratebay.se/search/%s%%20E%s/0/7/0"
-     
-    for i in range(len(showObjects)):
-        if showObjects[i].seasonNum == '00':
-            compositeUrl = baseUrl2 % (showObjects[i].title, showObjects[i].episodeNum)
-        else:
-            compositeUrl = baseUrl % (showObjects[i].title,
-                showObjects[i].seasonNum, showObjects[i].episodeNum)
-        
-        searchUrlList.append(compositeUrl)
+def genShowObject(title, season, episode):
+    """Return a single show object"""
+    if len(season) < 2:
+        season = '0' + season
+    if len(episode) < 2:
+        episode = '0' + episode
 
-    return searchUrlList
+    return show(title, season, episode)
 
-def whatDo():
-    """Execute all the things"""
-    showListFile = getFilePath('showList')
-    urlListFile = getFilePath('urlList')
-    matchListFile = getFilePath('matchList.magnet')
-    showDict = makeDict(showListFile)
-    urlList = makeList(urlListFile)
-    genShowObjects(showListFile)
-    searchForShowsByUrlSearch()
+def handleShowListArg(showListArg):
+    """Place holder to initialize a showList and send it to process"""
+    processShowListFile(showListArg)
+    #writeOutLinks(matchListFile)
+    #writeOutShowFile()    
 
-    #urlSearchList = makeUrlSearchList()
-    #data = getAllData(urlList)
-    #data = getAllData(urlSearchList)
-    #searchForShows(data) # change to variable data for real life
+def singleEntry(title, season, episode):
+    """Process a search for a single show entered on the command line"""
+    activeShow = genShowObject(title, season, episode)
+    activeUrl = makeSearchUrl(activeShow) # why can't the show class do this automatically?
+    activeData = getSomeData(activeUrl)
+    activeTest = activeShow.applyRegEx(activeData)
+    activeResults = activeShow.processMatch(activeTest)
+    writeSingleLink(activeShow)
+
+
+def main(argv):
+    print "main is running"
+    try:
+        opts, args = getopt.getopt(argv, "hi:s", ["ifile="])
     
-    writeOutLinks(matchListFile)
-    writeOutShowFile()    
+    except getopt.GetoptError:
+        print 'usage:\t-i <inputfile>'
+        print '\t-s <title> <season number> <episode number>'
+        sys.exit(2)
 
-whatDo()
+    for opt, arg in opts:
+        
+        if opt == '-h':
+            print '-s <title> <season number> <episode number>'
+            print '-i <inputfile>'
+            sys.exit()
+        
+        elif opt in ("-s", "--search"):
+            title = args[0] 
+            season = args[1]
+            episode = args[2]
+            print '%s S%sE%s' % (title, season, episode)
+            singleEntry(title, season, episode) 
 
+        elif opt in ("-i", "--infile"):
+            if os.path.isfile(arg):
+                abs_file_path = os.path.abspath(arg)
+                print "Processing: ", abs_file_path 
+                handleShowListArg(abs_file_path)
+            else:
+                print "%r is not a valid file" % arg
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
 
