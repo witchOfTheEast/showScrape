@@ -1,14 +1,5 @@
 import os, urllib2, re, sys, getopt
 
-# does not write out to the showList yet
-
-compiled_list = []
-compiled_dict = {} 
-showObjects = [] # list of show objects to iterate through, search for titles
-    #that are not marked found, update the ep number then they are found,
-    #mark them unfound
-siteData = [] 
-matchList = []
 outToShowList = []
 
 def getFilePath(fileName):
