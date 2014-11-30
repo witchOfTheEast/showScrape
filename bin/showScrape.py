@@ -51,8 +51,7 @@ def processShowListFile(suppliedFile):
             title, season, episode = lineContents[0:3]
             
             singleEntry(title, season, episode)
-            time.sleep(240) 
-            print 'slept for four minutes'
+            time.sleep(60) 
 
 class show(object):
     def __init__(self, title, seasonNum, episodeNum):
