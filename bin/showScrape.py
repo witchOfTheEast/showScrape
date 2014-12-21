@@ -167,11 +167,14 @@ def makeSearchUrl(whichShow):
     """Return single title/season/episode search url from show object"""
     # pattern is TITLE%20S##E##/0/7/0
     searchUrl = '' 
-    baseUrl = "http://thepiratebay.se/search/%s%%20S%sE%s/0/7/0"
-    baseUrl2 = "http://thepiratebay.se/search/%s%%20E%s/0/7/0"
+    #baseUrl = "http://thepiratebay.se/search/%s%%20S%sE%s/0/7/0"
+    #baseUrl2 = "http://thepiratebay.se/search/%s%%20E%s/0/7/0"
      
     #baseUrl = "http://piratebay.ws/search/%s%%20S%sE%s/0/7/0"
     #baseUrl2 = "http://piratebay.ws/search/%s%%20E%s/0/7/0"
+    baseUrl = 'https://kickass.so/usearch/?q=%s+S%sE%s'
+    baseUrl2 = 'https://kickass.so/usearch/?q=%s+E%s'
+    
     if whichShow.seasonNum == '00':
         compositeUrl = baseUrl2 % (whichShow.title, whichShow.episodeNum)
     else:
