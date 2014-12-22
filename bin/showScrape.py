@@ -1,4 +1,5 @@
-import os, urllib2, re, sys, getopt, time
+import os, urllib2, re, sys, getopt, time, gzip
+from StringIO import StringIO
 
 outToShowList = []
 
@@ -98,9 +99,17 @@ class show(object):
 def getSomeData(url):
     """Acquire site data from single supplied URL"""
     user_agent = "" # fill this in 
-    request = urllib2.Request(url)    
+    request = urllib2.Request(url)
+    request.add_header('Accept-encoding', 'gzip') # not strickly necessary? 
     response = urllib2.urlopen(request)
-    tempData = response.read() # make sure to change this to read()
+    
+    if response.info().get('Content-Encoding') == 'gzip':
+        buf = StringIO(response.read())
+        f = gzip.GzipFile(fileobj=buf)
+        tempData = f.read() 
+    else:
+        print 'Response encoding: ', response.headers['content-encoding']
+        tempData = response.read()
     return tempData 
 
 def writeOutLinks(suppliedFile):
