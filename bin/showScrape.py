@@ -78,6 +78,7 @@ class show(object):
     def applyRegEx(self, dataToTest):
             """Search data for title/season/episode regex, return a match object"""
             regEx = re.compile(r"""
+                (?<=href=")# ensure we match the actual link, non-capturing
                 magnet# beginning of magnet link
                 .*# anything until title
                 %s# title
