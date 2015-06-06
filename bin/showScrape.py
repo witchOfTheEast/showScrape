@@ -52,7 +52,7 @@ def processShowListFile(suppliedFile):
             title, season, episode = lineContents[0:3]
             
             singleEntry(title, season, episode)
-            time.sleep(60) 
+            time.sleep(20) 
 
 class show(object):
     def __init__(self, title, seasonNum, episodeNum):
@@ -102,6 +102,7 @@ def getSomeData(url):
     user_agent = "" # fill this in 
     request = urllib2.Request(url)
     request.add_header('Accept-encoding', 'gzip') # not strickly necessary? 
+    request.add_header('User-agent', 'Mozilla/5.0') # not strickly necessary? 
     response = urllib2.urlopen(request)
     
     if response.info().get('Content-Encoding') == 'gzip':
@@ -177,13 +178,13 @@ def makeSearchUrl(whichShow):
     """Return single title/season/episode search url from show object"""
     # pattern is TITLE%20S##E##/0/7/0
     searchUrl = '' 
-    #baseUrl = "http://thepiratebay.se/search/%s%%20S%sE%s/0/7/0"
-    #baseUrl2 = "http://thepiratebay.se/search/%s%%20E%s/0/7/0"
+    baseUrl = "http://thepiratebay.se/search/%s%%20S%sE%s/0/7/0"
+    baseUrl2 = "http://thepiratebay.se/search/%s%%20E%s/0/7/0"
      
     #baseUrl = "http://piratebay.ws/search/%s%%20S%sE%s/0/7/0"
     #baseUrl2 = "http://piratebay.ws/search/%s%%20E%s/0/7/0"
-    baseUrl = 'https://kickass.so/usearch/?q=%s+S%sE%s'
-    baseUrl2 = 'https://kickass.so/usearch/?q=%s+E%s'
+    #baseUrl = 'https://kickass.so/usearch/?q=%s+S%sE%s'
+    #baseUrl2 = 'https://kickass.so/usearch/?q=%s+E%s'
     
     if whichShow.seasonNum == '00':
         compositeUrl = baseUrl2 % (whichShow.title, whichShow.episodeNum)
