@@ -1,6 +1,11 @@
-import os, urllib2, re, sys, getopt
+import os, urllib2, re, sys, getopt, time
 
 outToShowList = []
+
+def checkDir(desiredDir):
+    """Check for a necessary directory in the script root. If not found, create it recursively."""
+    if os.path.exists(desiredDir) != True:
+        os.makedirs(desiredDir)
 
 def getFilePath(fileName):
     """Acquire the absolute path for the desired file"""
@@ -19,38 +24,34 @@ def getDirectoryPath(desiredDirectory):
 
 def processShowListFile(suppliedFile):
     """Search for each show entry in file line by line."""
-    try:
-        with open(suppliedFile) as f:
-            for line in f:
-                lineContents = line.split()
+    with open(suppliedFile) as f:
+        for line in f:
+            lineContents = line.split()
+            
+            if len(lineContents) < 3:
+                try:
+                    print "%s entry is incorrectly formatted. Likely \
+                    missing season or episode numbers." % lineContents[1]
                 
-                if len(lineContents) < 3:
-                    try:
-                        print "%s entry is incorrectly formatted. Likely \
-                        missing season or episode numbers." % lineContents[1]
-                    
-                    except IndexError:
-                        print "Catastrophic error reading line from %s" % suppliedFile
+                except IndexError:
+                    print "Catastrophic error reading line from %s" % suppliedFile
 
-                else:
-                    try: # catch a missing season and insert '00' season place holder
-                        lineContents[2]
+            else:
+                try: # catch a missing season and insert '00' season place holder
+                    lineContents[2]
 
-                    except IndexError:
-                        lineContents.insert(1, '00')
-                
-                # append a zero before single digit episode and season numbers
-                for i in range(1, 3):
-                    if len(lineContents[i]) < 2:
-                        lineContents[i] = '0' + lineContents[i]
-                
-                title, season, episode = lineContents[0:3]
-                
-                singleEntry(title, season, episode)
-        
-    except IOError:
-        print '%s was not found.' % suppliedFile
-        exit(2)
+                except IndexError:
+                    lineContents.insert(1, '00')
+            
+            # append a zero before single digit episode and season numbers
+            for i in range(1, 3):
+                if len(lineContents[i]) < 2:
+                    lineContents[i] = '0' + lineContents[i]
+            
+            title, season, episode = lineContents[0:3]
+            
+            singleEntry(title, season, episode)
+            time.sleep(60) 
 
 class show(object):
     def __init__(self, title, seasonNum, episodeNum):
@@ -169,6 +170,8 @@ def makeSearchUrl(whichShow):
     baseUrl = "http://thepiratebay.se/search/%s%%20S%sE%s/0/7/0"
     baseUrl2 = "http://thepiratebay.se/search/%s%%20E%s/0/7/0"
      
+    #baseUrl = "http://piratebay.ws/search/%s%%20S%sE%s/0/7/0"
+    #baseUrl2 = "http://piratebay.ws/search/%s%%20E%s/0/7/0"
     if whichShow.seasonNum == '00':
         compositeUrl = baseUrl2 % (whichShow.title, whichShow.episodeNum)
     else:
@@ -203,6 +206,8 @@ def singleEntry(title, season, episode):
 
 def main(argv):
     print "main is running"
+    checkDir('data/magnets')    
+
     try:
         opts, args = getopt.getopt(argv, "hi:s", ["ifile="])
     
